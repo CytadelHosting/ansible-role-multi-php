@@ -60,6 +60,15 @@
     value: "{{ item.1.value }}"
   loop: "{{ query('subelements', php, 'www_pool_conf', {'skip_missing': True}) }}"
 
+- name: Configure extra conf.d config files
+  ini_file:
+    path: "{{ php_versions[item.0.version].conf_dir }}mods-available/{{ item.1.file }}"
+    section: "{{ item.1.section | default ('') }}"
+    option: "{{ item.1.key }}"
+    value: "{{ item.1.value }}"
+  loop: "{{ query('subelements', php, 'mod_conf', {'skip_missing': True}) }}"
+
+
 - name: Configure cli/php.ini
   ini_file:
     path: "{{ php_versions[item.0.version].conf_dir }}/cli/php.ini"

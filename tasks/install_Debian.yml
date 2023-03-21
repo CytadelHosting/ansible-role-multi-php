@@ -9,4 +9,4 @@
     repo: deb https://packages.sury.org/php/ {{ ansible_distribution_release }} main
     state: present
     mode: 0644
-    filename: php.list
+    filename: sury-php
