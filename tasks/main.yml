@@ -52,6 +52,14 @@
     state: present
   loop: "{{ php }}"
 
+- name: Configure fpm/php-fpm.conf
+  ini_file:
+    path: "{{ php_versions[item.0.version].conf_dir }}/fpm/pool.d/www.conf"
+    section: "{{ item.1.section }}"
+    option: "{{ item.1.key }}"
+    value: "{{ item.1.value }}"
+  loop: "{{ query('subelements', php, 'www_pool_conf', {'skip_missing': True}) }}"
+
 - name: Configure cli/php.ini
   ini_file:
     path: "{{ php_versions[item.0.version].conf_dir }}/cli/php.ini"
