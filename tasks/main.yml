@@ -43,6 +43,15 @@
     value: "{{ item.1.value }}"
   loop: "{{ query('subelements', php, 'fpm_ini', {'skip_missing': True}) }}"
 
+- name: Fix fpm/php-fpm.conf too large inclusions
+  lineinfile:
+    path: "{{ php_versions[item.version].conf_dir }}fpm/php-fpm.conf"
+    regexp: '^include\=/etc/php/(.*)/fpm/pool.d/'
+    line: "include=/etc/php/\\1/fpm/pool.d/{{ fpm_conf_pool_pattern_to_include | default ('www') }}.conf"
+    backrefs: yes
+    state: present
+  loop: "{{ php }}"
+
 - name: Configure cli/php.ini
   ini_file:
     path: "{{ php_versions[item.0.version].conf_dir }}/cli/php.ini"
