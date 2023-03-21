@@ -309,3 +309,7 @@ php_versions:
     all_modules: "{{ php85_all_modules }}"
 
 php: []
+
+
+# default package value would be *.conf, fixed buy default to www.conf
+# fpm_conf_pool_pattern_to_include: '*'
