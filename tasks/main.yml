@@ -59,6 +59,9 @@
     - { "name": "php", "path": "/usr/bin/php{{ php_default_version }}" }
     - { "name": "php-cgi", "path": "/usr/bin/php-cgi{{ php_default_version }}" }
     - { "name": "php-cgi-bin", "path": "/usr/lib/cgi-bin/php{{ php_default_version }}" }
-#    - { "name": "php-config", "path": "/usr/bin/php-config7.3" }
-#    - { "name": "phpdbg", "path": "/usr/bin/phpdbg7.3" }
-#    - { "name": "phpize", "path": "/usr/bin/phpize7.3" }
+
+# Configure PHP.
+- include_tasks: configure.yml
+- include_tasks: configure-apcu.yml
+- include_tasks: configure-opcache.yml
+- include_tasks: configure-fpm.yml
