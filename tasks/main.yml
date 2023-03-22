@@ -41,6 +41,8 @@
     section: "{{ item.1.section }}"
     option: "{{ item.1.key }}"
     value: "{{ item.1.value }}"
+  register: version_to_restart
+  notify: restart php-fpm
   loop: "{{ query('subelements', php, 'fpm_ini', {'skip_missing': True}) }}"
 
 - name: Fix fpm/php-fpm.conf too large inclusions
@@ -58,6 +60,8 @@
     section: "{{ item.1.section }}"
     option: "{{ item.1.key }}"
     value: "{{ item.1.value }}"
+  register: version_to_restart
+  notify: restart php-fpm
   loop: "{{ query('subelements', php, 'www_pool_conf', {'skip_missing': True}) }}"
 
 - name: Configure extra conf.d config files
@@ -66,6 +70,8 @@
     section: "{{ item.1.section | default ('') }}"
     option: "{{ item.1.key }}"
     value: "{{ item.1.value }}"
+  register: version_to_restart
+  notify: restart php-fpm
   loop: "{{ query('subelements', php, 'mod_conf', {'skip_missing': True}) }}"
 
 

@@ -1,1 +1,8 @@
 ---
+- name: restart php-fpm
+  service:
+    name: "php{{ php_versions[item.item.0.version].version }}-fpm"
+    state: restarted
+  when:
+    - item.changed
+  loop: "{{ version_to_restart.results }}"
