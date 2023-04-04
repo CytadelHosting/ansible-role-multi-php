@@ -6,6 +6,7 @@
       - lsb-release
       - ca-certificates
       - gpg
+    update_cache: true
 
 - name: Distribution specific install
   include_tasks: "install_{{ ansible_distribution }}.yml"
