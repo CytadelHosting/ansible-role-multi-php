@@ -54,6 +54,7 @@
     backrefs: yes
     state: present
   loop: "{{ php }}"
+  ignore_errors: '{{ ansible_check_mode }}'
 
 - name: Configure fpm/php-fpm.conf
   ini_file:
