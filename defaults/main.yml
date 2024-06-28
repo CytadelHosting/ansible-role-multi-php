@@ -139,6 +139,7 @@ php_all_modules:
   - xmlrpc
   - zip
 
+
 php56_default_modules: "{{ php_default_modules }}"
 php70_default_modules: "{{ php_default_modules }}"
 php71_default_modules: "{{ php_default_modules }}"
@@ -311,5 +312,5 @@ php_versions:
 php: []
 
 
-# default package value would be *.conf, fixed buy default to www.conf
+# default package value would be *.conf, fixed by default to www.conf
 # fpm_conf_pool_pattern_to_include: '*'
