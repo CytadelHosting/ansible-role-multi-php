@@ -6,6 +6,31 @@ Ansible role providing multiple PHP versions on Debian.
 Changelog
 ---------
 
+1.8.1
+
+* Exclude opcache from php85_default_modules
+  * It is not always included, see [changelog / Make OPcache non-optional](https://www.php.net/ChangeLog-8.php#8.5.0)
+
+1.8.0
+
+* Support PHP 8.5
+
+1.7.0
+
+* Support Debian 13 and newer (without apt-key)
+
+1.6.0
+
+* Support PHP 8.4
+
+1.5.1
+
+* Fix excluding JSON module for PHP 8.0+
+
+1.5.0
+
+* Support PHP 8.3
+
 1.4.0
 
 * Support PHP 8.2
@@ -66,7 +91,9 @@ Requirements
 
 Role requires APT repository [deb.sury.org](https://deb.sury.org), provided by Ondrej Sury.
 
-Role is tested only on Debian Buster and Ubuntu Focal. Other distribution versions should work too - if they have packages in repository.
+Role is tested and used in production deployments of Debian 10/11/12/13, and LTS versions of Ubuntu 20.04/22.04/24.04.
+
+Other distributions based on Debian/Ubuntu should work too.
 
 Role Variables
 --------------
@@ -74,7 +101,7 @@ Role Variables
 Default PHP version:
 
 ```yaml
-php_default_version: "php7.3"
+php_default_version: "7.3"
 ```
 
 List of PHP modules to be installed across all versions:
