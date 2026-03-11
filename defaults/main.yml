@@ -167,8 +167,9 @@ php83_all_modules: "{{ php_all_modules | difference(['recode', 'json']) }}"
 php84_all_modules: "{{ php_all_modules | difference(['mcrypt', 'recode', 'json']) }}"
 php85_all_modules: "{{ php_all_modules | difference(['mcrypt', 'recode', 'json', 'opcache']) }}"
 
+# Cytadel: déactivate list, as it systematically uninstalls packages
 # apt-cache search php8.5 | grep '^php8.5' | awk '{ print $1 }' | grep -v dbgsym | cut -c 8- | sort
-php85_all_modules:
+disabled_php85_all_modules:
   - amqp
   - apcu
   - ast
