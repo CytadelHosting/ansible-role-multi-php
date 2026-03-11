@@ -1,20 +1,15 @@
-# Synchroniser le fork avec l'upstream et réintégrer les évolutions métier
+# Synchronisation upstream -> fork et workflow release
 
-Ce guide documente la procédure utilisée pour :
+Ce document décrit une stratégie propre et durable pour ce fork :
 
-- récupérer les évolutions du dépôt source (`upstream/main`),
-- rebaser la branche d'évolution locale dessus,
-- pousser le résultat proprement sur `origin`.
-
-Contexte de référence :
-
-- branche d'évolution : `minimal-config-improvements`
-- base historique de cette branche : tag `1.4.0`
-- upstream actuel : tag `1.8.1` (et branche `main` à jour)
+- `upstream/main` : source officielle (repo public),
+- `origin/main` : miroir read-only de `upstream/main`,
+- `origin/cytadel-release` : branche de release de ton fork,
+- `origin/feature/*` : branches d'évolution.
 
 ---
 
-## 1) Se placer dans le dépôt et vérifier l'état
+## 1) Préparation et contrôles de base
 
 ```bash
 cd /Users/sylvain/git/ansible-roles/CytadelHosting.multi-php
@@ -22,25 +17,25 @@ git status
 git remote -v
 ```
 
-Objectif :
+Vérifier que :
 
-- confirmer que le dépôt est propre ou identifier les changements en cours,
-- voir les remotes existants avant ajout de `upstream`.
+- `origin` pointe sur ton fork,
+- `upstream` pointe sur le projet source.
 
 ---
 
-## 2) Configurer le remote `upstream`
+## 2) Configurer ou corriger le remote `upstream`
 
-Si `upstream` n'existe pas encore :
+Si `upstream` n'existe pas :
 
 ```bash
-git remote add upstream <URL_DU_REPO_SOURCE>
+git remote add upstream https://github.com/lukasic/ansible-role-multi-php.git
 ```
 
-Si `upstream` existe déjà et doit être corrigé :
+Si `upstream` existe déjà mais est incorrect :
 
 ```bash
-git remote set-url upstream <URL_DU_REPO_SOURCE>
+git remote set-url upstream https://github.com/lukasic/ansible-role-multi-php.git
 ```
 
 Contrôle :
@@ -51,14 +46,14 @@ git remote -v
 
 ---
 
-## 3) Récupérer les dernières données (branches + tags)
+## 3) Récupérer les dernières données
 
 ```bash
 git fetch origin --prune --tags
 git fetch upstream --prune --tags
 ```
 
-Vérifier la présence des tags utiles :
+Contrôle optionnel des tags :
 
 ```bash
 git tag -l "*1.4.0*"
@@ -67,104 +62,195 @@ git tag -l "*1.8.1*"
 
 ---
 
-## 4) Sauvegarder la branche d'évolution avant rebase
+## 4) Renommer la branche release en `cytadel-release`
+
+Etat cible :
+
+- `main` reste read-only (miroir upstream),
+- `cytadel-release` devient ta branche release active.
+
+### 4.1 Renommer localement + publier
 
 ```bash
 git checkout minimal-config-improvements
-git branch backup/minimal-config-improvements-$(date +%Y%m%d-%H%M)
+git pull --ff-only origin minimal-config-improvements
+git branch -m minimal-config-improvements cytadel-release
+git push -u origin cytadel-release
 ```
 
-Cette sauvegarde permet un rollback rapide si nécessaire.
+### 4.2 Basculer la branche par défaut GitHub
+
+Dans GitHub :
+
+- `Settings` -> `Branches` -> `Default branch` -> `cytadel-release`.
+
+### 4.3 Nettoyage de l'ancienne branche distante (optionnel)
+
+Après avoir changé la branche par défaut :
+
+```bash
+git push origin --delete minimal-config-improvements
+git fetch origin --prune
+git remote set-head origin -a
+```
 
 ---
 
-## 5) Rebase des commits métier sur `upstream/main` (Option A)
+## 5) Synchroniser `origin/main` avec `upstream/main` (miroir read-only)
 
-> Hypothèse : la branche `minimal-config-improvements` a bien été créée depuis `1.4.0`.
+Cette étape met à jour uniquement le miroir.
 
 ```bash
-git checkout minimal-config-improvements
-git rebase --onto upstream/main 1.4.0 minimal-config-improvements
+git fetch upstream --prune --tags
+git fetch origin --prune --tags
+
+git checkout main
+git pull --ff-only origin main
+git merge --ff-only upstream/main
+git push origin main
 ```
 
-### En cas de conflits
+Notes :
 
-1. Corriger les fichiers en conflit
-2. Marquer les résolutions
-3. Continuer le rebase
+- `--ff-only` garantit qu'aucun commit local parasite n'est ajouté au miroir.
+- Si ça échoue, il faut d'abord analyser pourquoi `origin/main` a divergé.
+
+---
+
+## 6) Intégrer les nouveautés upstream dans `cytadel-release`
+
+Deux options, selon la politique d'historique.
+
+### Option A (historique linéaire, recommandé)
+
+```bash
+git checkout cytadel-release
+git pull --ff-only origin cytadel-release
+git rebase main
+git push --force-with-lease origin cytadel-release
+```
+
+### Option B (sans réécriture d'historique)
+
+```bash
+git checkout cytadel-release
+git pull --ff-only origin cytadel-release
+git merge main
+git push origin cytadel-release
+```
+
+---
+
+## 7) Process d'évolution avec branches de feature
+
+### 7.1 Créer une branche de feature depuis la release
+
+```bash
+git checkout cytadel-release
+git pull --ff-only origin cytadel-release
+git checkout -b feature/<nom-court-feature>
+```
+
+Exemples :
+
+- `feature/php85-packages`
+- `feature/fpm-pool-hardening`
+
+### 7.2 Développer et pousser la feature
+
+```bash
+git add .
+git commit -m "feat: <description courte>"
+git push -u origin feature/<nom-court-feature>
+```
+
+### 7.3 Recaler la feature avant merge
+
+```bash
+git checkout feature/<nom-court-feature>
+git fetch origin
+git rebase origin/cytadel-release
+```
+
+Si conflit :
 
 ```bash
 git add <fichier_corrige>
 git rebase --continue
 ```
 
-Annuler complètement le rebase si besoin :
+Annuler si nécessaire :
 
 ```bash
 git rebase --abort
 ```
 
+### 7.4 Merge de la feature vers `cytadel-release`
+
+```bash
+git checkout cytadel-release
+git pull --ff-only origin cytadel-release
+git merge --ff-only feature/<nom-court-feature>
+git push origin cytadel-release
+```
+
+### 7.5 Nettoyer la branche feature après intégration
+
+```bash
+git branch -d feature/<nom-court-feature>
+git push origin --delete feature/<nom-court-feature>
+```
+
 ---
 
-## 6) Vérifier le résultat du rebase
+## 8) Vérifications utiles après synchro ou merge
 
 ```bash
 git status -sb
 git branch -vv
-git log --oneline --decorate --graph --max-count=30
-git diff --stat upstream/main...minimal-config-improvements
+git log --oneline --decorate --graph --max-count=40
+git diff --stat main...cytadel-release
 ```
 
 ---
 
-## 7) Pousser la branche réécrite sur `origin`
+## 9) Garde-fous importants
 
-Le rebase réécrit l'historique : il faut pousser avec `--force-with-lease` (sécurisé).
+- Ne jamais développer directement sur `main`.
+- Protéger `main` et `cytadel-release` dans GitHub (branch protection).
+- Utiliser `--force-with-lease` uniquement après rebase maîtrisé.
+- Faire une branche `backup/*` avant opérations sensibles.
+
+Exemple :
 
 ```bash
-git push --force-with-lease origin minimal-config-improvements
-```
-
-Version explicite (équivalente) :
-
-```bash
-git push --force-with-lease origin minimal-config-improvements:minimal-config-improvements
+git checkout cytadel-release
+git branch backup/cytadel-release-$(date +%Y%m%d-%H%M)
 ```
 
 ---
 
-## 8) Erreur courante rencontrée et correction
+## 10) Tagger une release
 
-Erreur observée :
-
-```text
-erreur : le spécificateur de référence source minimal-config-improvement ne correspond à aucune référence
-```
-
-Cause :
-
-- mauvais nom de branche (`minimal-config-improvement` au singulier),
-- alors que la branche réelle est `minimal-config-improvements` (avec `s`).
-
-Commande correcte :
+Tagger depuis `cytadel-release` uniquement, après validation.
 
 ```bash
-git push --force-with-lease origin minimal-config-improvements
+git checkout cytadel-release
+git pull --ff-only origin cytadel-release
+git tag -a vX.Y.Z -m "Release vX.Y.Z"
+git push origin vX.Y.Z
 ```
 
----
+Vérifier localement et à distance :
 
-## 9) Préconisations de nommage (pour éviter les confusions)
+```bash
+git tag -l "v*"
+git ls-remote --tags origin
+```
 
-Bon schéma recommandé :
+Optionnel : pousser tous les tags locaux d'un coup.
 
-- `upstream/main` : référence source (lecture/intégration),
-- `main` (fork) : branche stable de ton fork,
-- `feature/*` : branches d'évolution (ex: `feature/minimal-config-improvements`),
-- `release/*` : branches de préparation de release si nécessaire.
-
-Conseil pratique :
-
-- garder des noms explicites et consistants (singulier/pluriel),
-- éviter un nom trop proche entre branches critiques.
+```bash
+git push origin --tags
+```
 
