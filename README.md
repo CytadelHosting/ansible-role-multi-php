@@ -90,6 +90,10 @@ Requirements
 ------------
 
 Role requires APT repository [deb.sury.org](https://deb.sury.org), provided by Ondrej Sury.
+This role does not manage Sury repository declaration itself anymore.
+You must run `cytadel.baseline.repo_sury` before `CytadelHosting_multi_php`.
+At runtime, this role verifies that `/etc/apt/sources.list.d/sury-php.list` exists
+and contains a valid `https://packages.sury.org/php/` entry.
 
 Role is tested and used in production deployments of Debian 10/11/12/13, and LTS versions of Ubuntu 20.04/22.04/24.04.
 

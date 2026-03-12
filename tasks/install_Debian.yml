@@ -1,28 +1,26 @@
 ---
-- name: Add packages.sury.org/php APT key
-  apt_key:
-    url: https://packages.sury.org/php/apt.gpg
-    state: present
-  when: ansible_distribution_version|int <= 10
+- name: Check if /etc/apt/sources.list.d/sury-php.list exists
+  ansible.builtin.stat:
+    path: /etc/apt/sources.list.d/sury-php.list
+  register: php_sury_repo_file
 
-- name: Install debsuryorg-archive-keyring
-  apt:
-    deb: https://packages.sury.org/debsuryorg-archive-keyring.deb
-    state: present
-  when: ansible_distribution_version|int >= 11
+- name: Fail if Sury PHP repository file is missing
+  ansible.builtin.fail:
+    msg: >-
+      Missing /etc/apt/sources.list.d/sury-php.list.
+      Run role `cytadel.baseline.repo_sury` before `CytadelHosting_multi_php`.
+  when: not php_sury_repo_file.stat.exists
 
-- name: Add packages.sury.org/php APT repository
-  apt_repository:
-    repo: deb https://packages.sury.org/php/ {{ ansible_distribution_release }} main
-    state: present
-    mode: 0644
-    filename: sury-php
-  when: ansible_distribution_version|int <= 10
+- name: Read /etc/apt/sources.list.d/sury-php.list
+  ansible.builtin.slurp:
+    src: /etc/apt/sources.list.d/sury-php.list
+  register: php_sury_repo_file_raw
 
-- name: Add packages.sury.org/php APT repository
-  apt_repository:
-    repo: deb [signed-by=/usr/share/keyrings/debsuryorg-archive-keyring.gpg] https://packages.sury.org/php/ {{ ansible_distribution_release }} main
-    state: present
-    mode: 0644
-    filename: sury-php
-  when: ansible_distribution_version|int >= 11
+- name: Fail if sury-php.list does not declare packages.sury.org/php
+  ansible.builtin.assert:
+    that:
+      - (php_sury_repo_file_raw.content | b64decode) is regex('(?m)^\\s*deb(\\s+\\[[^\\]]+\\])?\\s+https://packages\\.sury\\.org/php/\\s+.*\\s+main\\s*$')
+    fail_msg: >-
+      /etc/apt/sources.list.d/sury-php.list exists but does not contain a valid
+      packages.sury.org/php repository entry. Run `cytadel.baseline.repo_sury` before
+      `CytadelHosting_multi_php`.
