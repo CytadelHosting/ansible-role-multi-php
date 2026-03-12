@@ -95,6 +95,41 @@ You must run `cytadel.baseline.repo_sury` before `CytadelHosting_multi_php`.
 At runtime, this role verifies that `/etc/apt/sources.list.d/sury-php.list` exists
 and contains a valid `https://packages.sury.org/php/` entry.
 
+Sury repository handling (Cytadel mode)
+---------------------------------------
+
+This role no longer installs or updates the Sury PHP repository on Debian.
+Repository declaration is centralized in `cytadel.baseline.repo_sury` to avoid duplicated
+logic across roles (`multi_php`, `nginx`, etc.) and reduce drift/side effects.
+
+Runtime check performed by this role:
+
+1. `/etc/apt/sources.list.d/sury-php.list` must exist.
+2. The file content must match this repository pattern:
+
+```regex
+(?m)^\s*deb(\s+\[[^\]]+\])?\s+https://packages\.sury\.org/php/\s+.*\s+main\s*$
+```
+
+Regex explanation:
+
+- `(?m)`: multiline mode (`^`/`$` per line).
+- `^\s*deb`: start of active APT line.
+- `(\s+\[[^\]]+\])?`: optional APT options block (e.g. `signed-by=...`).
+- `\s+https://packages\.sury\.org/php/\s+`: exact Sury PHP URL.
+- `.*\s+main\s*$`: distribution codename + component `main`.
+
+Current limits (intentional for maintainability):
+
+- no multiline duplicate detection (checks validity, not uniqueness),
+- fixed file path: `/etc/apt/sources.list.d/sury-php.list`,
+- Debian-focused behavior (this check is tied to Debian APT layout),
+- this role does not fix/repair repo files; it fails fast with a clear message.
+
+Upstream Sury reference:
+
+- [Sury PHP repository README](https://packages.sury.org/php/README.txt)
+
 Role is tested and used in production deployments of Debian 10/11/12/13, and LTS versions of Ubuntu 20.04/22.04/24.04.
 
 Other distributions based on Debian/Ubuntu should work too.
