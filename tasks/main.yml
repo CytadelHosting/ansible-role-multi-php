@@ -87,6 +87,52 @@
     value: "{{ item.1.value }}"
   loop: "{{ query('subelements', php, 'cli_ini', {'skip_missing': True}) }}"
 
+# Tag php_upload_progress : ne passe que ce bloc.
+# Le php.ini ne suffit pas (PHP_INI_PERDIR, un .user.ini peut réactiver).
+# Le flag du pool www verrouille phpX.Y-fpm. Les pools vhost sont dans cytadel.website.
+- name: Disable session upload progress
+  tags:
+    - php_upload_progress
+  block:
+    - name: Disable session upload progress in every installed php.ini
+      ini_file:
+        path: "{{ php_versions[item.1.version].conf_dir }}/{{ item.0 }}/php.ini"
+        section: Session
+        option: session.upload_progress.enabled
+        value: "Off"
+      loop: "{{ ['fpm', 'cli'] | product(php) | list }}"
+      loop_control:
+        label: "{{ item.1.version }}/{{ item.0 }}"
+      register: php_upload_progress_ini
+
+    - name: Disable session upload progress in the default www pool
+      ini_file:
+        path: "{{ php_versions[item.version].conf_dir }}/fpm/pool.d/www.conf"
+        section: www
+        option: "php_admin_flag[session.upload_progress.enabled]"
+        value: "off"
+      loop: "{{ php }}"
+      loop_control:
+        label: "{{ item.version }}"
+      register: php_upload_progress_www
+
+    - name: List php-fpm init scripts
+      find:
+        paths: /etc/init.d
+        patterns: "php*-fpm*"
+        file_type: file
+      register: php_fpm_init_scripts
+
+    - name: Reload running php-fpm services
+      command:
+        argv:
+          - "{{ item.path }}"
+          - reload
+      loop: "{{ php_fpm_init_scripts.files }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
+      when: php_upload_progress_ini.changed or php_upload_progress_www.changed
+
 - name: Set default PHP version
   alternatives:
     name: "{{ item.name }}"
