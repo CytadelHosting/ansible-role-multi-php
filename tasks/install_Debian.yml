@@ -1,20 +1,25 @@
 ---
+# Inactif tant que php_manage_sury_repo est false. Le dépôt est celui de baseline.
 - name: Check if /etc/apt/sources.list.d/sury-php.list exists
   ansible.builtin.stat:
     path: /etc/apt/sources.list.d/sury-php.list
   register: php_sury_repo_file
+  when: php_manage_sury_repo | bool
 
 - name: Fail if Sury PHP repository file is missing
   ansible.builtin.fail:
     msg: >-
       Missing /etc/apt/sources.list.d/sury-php.list.
       Run role `cytadel.baseline.repo_sury` before `CytadelHosting_multi_php`.
-  when: not php_sury_repo_file.stat.exists
+  when:
+    - php_manage_sury_repo | bool
+    - not php_sury_repo_file.stat.exists
 
 - name: Read /etc/apt/sources.list.d/sury-php.list
   ansible.builtin.slurp:
     src: /etc/apt/sources.list.d/sury-php.list
   register: php_sury_repo_file_raw
+  when: php_manage_sury_repo | bool
 
 - name: Fail if sury-php.list does not declare packages.sury.org/php
   ansible.builtin.assert:
@@ -24,3 +29,4 @@
       /etc/apt/sources.list.d/sury-php.list exists but does not contain a valid
       packages.sury.org/php repository entry. Run `cytadel.baseline.repo_sury` before
       `CytadelHosting_multi_php`.
+  when: php_manage_sury_repo | bool

@@ -1,6 +1,8 @@
 ---
 
+# Inactif tant que php_manage_sury_repo est false. Le dépôt est celui de baseline.
 - name: Add Ubuntu repository
   ansible.builtin.apt_repository:
     repo: 'ppa:ondrej/php'
     codename: "{{ ansible_distribution_release }}"
+  when: php_manage_sury_repo | bool

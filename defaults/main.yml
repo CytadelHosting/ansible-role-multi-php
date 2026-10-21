@@ -2,6 +2,10 @@
 
 php_default_version: "7.3"
 
+# Le dépôt PHP est posé par cytadel.baseline.repo_sury.
+# false : ce rôle ne vérifie pas sury-php.list et n'ajoute pas le PPA Ubuntu.
+php_manage_sury_repo: false
+
 php_remove_unused_versions: false
 php_remove_unused_modules: false
 

@@ -89,11 +89,10 @@ Using `requirements.yml`:
 Requirements
 ------------
 
-Role requires APT repository [deb.sury.org](https://deb.sury.org), provided by Ondrej Sury.
-This role does not manage Sury repository declaration itself anymore.
-You must run `cytadel.baseline.repo_sury` before `CytadelHosting_multi_php`.
-At runtime, this role verifies that `/etc/apt/sources.list.d/sury-php.list` exists
-and contains a valid `https://packages.sury.org/php/` entry.
+Role expects APT repository [deb.sury.org](https://deb.sury.org), provided by Ondrej Sury.
+This role does not manage that repository. Declaration is done by `cytadel.baseline.repo_sury`.
+`php_manage_sury_repo` defaults to `false`: no check of `sury-php.list`, and the Ubuntu
+Ondrej PPA is not added.
 
 Sury repository handling (Cytadel mode)
 ---------------------------------------
@@ -102,7 +101,7 @@ This role no longer installs or updates the Sury PHP repository on Debian.
 Repository declaration is centralized in `cytadel.baseline.repo_sury` to avoid duplicated
 logic across roles (`multi_php`, `nginx`, etc.) and reduce drift/side effects.
 
-Runtime check performed by this role:
+Set `php_manage_sury_repo: true` to restore the runtime check:
 
 1. `/etc/apt/sources.list.d/sury-php.list` must exist.
 2. The file content must match this repository pattern:
