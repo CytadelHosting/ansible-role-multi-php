@@ -46,8 +46,10 @@
     value: "{{ item.1.value }}"
   register: version_to_restart
   notify: restart php-fpm
+  when: php_manage_fpm | bool
   loop: "{{ query('subelements', php, 'fpm_ini', {'skip_missing': True}) }}"
 
+# php-fpm.conf n'existe pas sans le paquet fpm. Sans ce garde, l'hôte mod_php casse ici.
 - name: Fix fpm/php-fpm.conf too large inclusions
   lineinfile:
     path: "{{ php_versions[item.version].conf_dir }}fpm/php-fpm.conf"
@@ -55,6 +57,7 @@
     line: "include=/etc/php/\\1/fpm/pool.d/{{ fpm_conf_pool_pattern_to_include | default ('www') }}.conf"
     backrefs: yes
     state: present
+  when: php_manage_fpm | bool
   loop: "{{ php }}"
   ignore_errors: '{{ ansible_check_mode }}'
 
@@ -66,8 +69,10 @@
     value: "{{ item.1.value }}"
   register: version_to_restart
   notify: restart php-fpm
+  when: php_manage_fpm | bool
   loop: "{{ query('subelements', php, 'www_pool_conf', {'skip_missing': True}) }}"
 
+# mods-available est partagé entre SAPI. FPM redémarre, Apache recharge.
 - name: Configure extra conf.d config files
   ini_file:
     path: "{{ php_versions[item.0.version].conf_dir }}mods-available/{{ item.1.file }}"
@@ -75,9 +80,10 @@
     option: "{{ item.1.key }}"
     value: "{{ item.1.value }}"
   register: version_to_restart
-  notify: restart php-fpm
+  notify:
+    - restart php-fpm
+    - reload apache2
   loop: "{{ query('subelements', php, 'mod_conf', {'skip_missing': True}) }}"
-
 
 - name: Configure cli/php.ini
   ini_file:
@@ -87,23 +93,61 @@
     value: "{{ item.1.value }}"
   loop: "{{ query('subelements', php, 'cli_ini', {'skip_missing': True}) }}"
 
+# Même forme que fpm_ini. Register séparé : version_to_restart redémarre php-fpm.
+- name: Configure apache2/php.ini
+  ini_file:
+    path: "{{ php_versions[item.0.version].conf_dir }}/apache2/php.ini"
+    section: "{{ item.1.section }}"
+    option: "{{ item.1.key }}"
+    value: "{{ item.1.value }}"
+    mode: "0644"
+  notify: reload apache2
+  when: php_manage_apache2 | bool
+  loop: "{{ query('subelements', php, 'apache2_ini', {'skip_missing': True}) }}"
+
 # Tag php_upload_progress : ne passe que ce bloc.
-# Le php.ini ne suffit pas (PHP_INI_PERDIR, un .user.ini peut réactiver).
-# Le flag du pool www verrouille phpX.Y-fpm. Les pools vhost sont dans cytadel.website.
+# PHP_INI_PERDIR : php.ini ne suffit pas.
+# FPM : php_admin_flag du pool www. Les pools vhost sont dans cytadel.website.
+# Apache : php_admin_flag dans conf-available. .user.ini n'est pas lu par mod_php.
 - name: Disable session upload progress
   tags:
     - php_upload_progress
   block:
-    - name: Disable session upload progress in every installed php.ini
+    - name: Disable session upload progress in cli/php.ini
       ini_file:
-        path: "{{ php_versions[item.1.version].conf_dir }}/{{ item.0 }}/php.ini"
+        path: "{{ php_versions[item.version].conf_dir }}/cli/php.ini"
         section: Session
         option: session.upload_progress.enabled
         value: "Off"
-      loop: "{{ ['fpm', 'cli'] | product(php) | list }}"
+      loop: "{{ php }}"
       loop_control:
-        label: "{{ item.1.version }}/{{ item.0 }}"
-      register: php_upload_progress_ini
+        label: "{{ item.version }}/cli"
+      register: php_upload_progress_cli
+
+    - name: Disable session upload progress in fpm/php.ini
+      ini_file:
+        path: "{{ php_versions[item.version].conf_dir }}/fpm/php.ini"
+        section: Session
+        option: session.upload_progress.enabled
+        value: "Off"
+      loop: "{{ php }}"
+      loop_control:
+        label: "{{ item.version }}/fpm"
+      when: php_manage_fpm | bool
+      register: php_upload_progress_fpm
+
+    - name: Disable session upload progress in apache2/php.ini
+      ini_file:
+        path: "{{ php_versions[item.version].conf_dir }}/apache2/php.ini"
+        section: Session
+        option: session.upload_progress.enabled
+        value: "Off"
+      loop: "{{ php }}"
+      loop_control:
+        label: "{{ item.version }}/apache2"
+      when: php_manage_apache2 | bool
+      notify: reload apache2
+      register: php_upload_progress_apache
 
     - name: Disable session upload progress in the default www pool
       ini_file:
@@ -114,7 +158,28 @@
       loop: "{{ php }}"
       loop_control:
         label: "{{ item.version }}"
+      when: php_manage_fpm | bool
       register: php_upload_progress_www
+
+    - name: Lock session upload progress for mod_php
+      copy:
+        src: php-upload-progress.conf
+        dest: /etc/apache2/conf-available/php-upload-progress.conf
+        owner: root
+        group: root
+        mode: "0644"
+      when: php_manage_apache2 | bool
+      notify: reload apache2
+
+    - name: Enable php-upload-progress Apache conf
+      command:
+        argv:
+          - a2enconf
+          - php-upload-progress
+      args:
+        creates: /etc/apache2/conf-enabled/php-upload-progress.conf
+      when: php_manage_apache2 | bool
+      notify: reload apache2
 
     - name: List php-fpm init scripts
       find:
@@ -122,25 +187,31 @@
         patterns: "php*-fpm*"
         file_type: file
       register: php_fpm_init_scripts
+      when: php_manage_fpm | bool
 
     - name: Reload running php-fpm services
       command:
         argv:
           - "{{ item.path }}"
           - reload
-      loop: "{{ php_fpm_init_scripts.files }}"
+      loop: "{{ php_fpm_init_scripts.files | default([]) }}"
       loop_control:
         label: "{{ item.path | basename }}"
-      when: php_upload_progress_ini.changed or php_upload_progress_www.changed
+      when:
+        - php_manage_fpm | bool
+        - (php_upload_progress_cli.changed | default(false)) or (php_upload_progress_fpm.changed | default(false)) or (php_upload_progress_www.changed | default(false))
 
+# php-cgi est absent quand php_manage_cgi est false (binaire manquant = alternatives en erreur).
 - name: Set default PHP version
+  alternatives:
+    name: php
+    path: "/usr/bin/php{{ php_default_version }}"
+
+- name: Set default PHP CGI version
   alternatives:
     name: "{{ item.name }}"
     path: "{{ item.path }}"
   loop:
-    - { "name": "php", "path": "/usr/bin/php{{ php_default_version }}" }
     - { "name": "php-cgi", "path": "/usr/bin/php-cgi{{ php_default_version }}" }
     - { "name": "php-cgi-bin", "path": "/usr/lib/cgi-bin/php{{ php_default_version }}" }
-#    - { "name": "php-config", "path": "/usr/bin/php-config7.3" }
-#    - { "name": "phpdbg", "path": "/usr/bin/phpdbg7.3" }
-#    - { "name": "phpize", "path": "/usr/bin/phpize7.3" }
+  when: php_manage_cgi | bool

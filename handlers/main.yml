@@ -4,5 +4,13 @@
     name: "php{{ php_versions[item.item.0.version].version }}-fpm"
     state: restarted
   when:
+    - php_manage_fpm | bool
     - item.changed
   loop: "{{ version_to_restart.results }}"
+
+# mod_php ne relit php.ini qu'au reload d'Apache. Ignoré sur un hôte FPM.
+- name: reload apache2
+  service:
+    name: apache2
+    state: reloaded
+  when: php_manage_apache2 | bool

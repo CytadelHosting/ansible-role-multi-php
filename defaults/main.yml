@@ -6,6 +6,16 @@ php_default_version: "7.3"
 # false : ce rôle ne vérifie pas sury-php.list et n'ajoute pas le PPA Ubuntu.
 php_manage_sury_repo: false
 
+# SAPI gérés. Défaut : stack FPM + CGI du parc nginx.
+# Hôte Apache prefork + mod_php :
+#   php_manage_fpm: false
+#   php_manage_cgi: false
+#   php_manage_apache2: true
+# et surcharge de la liste de paquets phpXX (retirer -fpm/-cgi, ajouter libapache2-mod-phpX.Y).
+php_manage_fpm: true
+php_manage_cgi: true
+php_manage_apache2: false
+
 php_remove_unused_versions: false
 php_remove_unused_modules: false
 

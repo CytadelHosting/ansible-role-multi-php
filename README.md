@@ -129,6 +129,23 @@ Upstream Sury reference:
 
 - [Sury PHP repository README](https://packages.sury.org/php/README.txt)
 
+Apache mod_php
+--------------
+
+Default SAPI is PHP-FPM plus CGI. An Apache prefork host (no php-fpm) sets:
+
+```yaml
+php_manage_fpm: false
+php_manage_cgi: false
+php_manage_apache2: true
+```
+
+Override that version's package list (`php56`, `php74`, ...): drop `phpX.Y-fpm` and `phpX.Y-cgi`, add `libapache2-mod-phpX.Y`.
+
+`apache2_ini` on a `php:` entry is written to `/etc/php/X.Y/apache2/php.ini`, same shape as `fpm_ini` / `cli_ini`. A change reloads Apache.
+
+`session.upload_progress` is forced Off. On mod_php the lock is `php_admin_flag` in `/etc/apache2/conf-available/php-upload-progress.conf` (`a2enconf`): a `.htaccess` `php_flag` can override `php.ini`. `.user.ini` is not read by mod_php.
+
 Role is tested and used in production deployments of Debian 10/11/12/13, and LTS versions of Ubuntu 20.04/22.04/24.04.
 
 Other distributions based on Debian/Ubuntu should work too.
