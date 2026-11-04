@@ -16,6 +16,18 @@ php_manage_fpm: true
 php_manage_cgi: true
 php_manage_apache2: false
 
+# Défauts écrits dans fpm/php.ini de chaque version. PHP_INI_ALL :
+# un pool les écrase avec php_value[session.cookie_*].
+# cookie_samesite n'existe qu'à partir de PHP 7.3.
+php_fpm_session_cookie_ini:
+  - key: session.cookie_httponly
+    value: "1"
+  - key: session.cookie_secure
+    value: "1"
+  - key: session.cookie_samesite
+    value: '"Lax"'
+    min_version: "7.3"
+
 php_remove_unused_versions: false
 php_remove_unused_modules: false
 

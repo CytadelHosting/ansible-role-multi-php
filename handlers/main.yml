@@ -8,6 +8,14 @@
     - item.changed
   loop: "{{ version_to_restart.results }}"
 
+# Un restart par version dont un flag cookie a changé, pas un par clé.
+- name: restart php-fpm session cookies
+  service:
+    name: "php{{ php_versions[item].version }}-fpm"
+    state: restarted
+  loop: "{{ php_fpm_session_cookie_result.results | selectattr('changed') | map(attribute='item.0.version') | unique | list }}"
+  when: php_manage_fpm | bool
+
 # mod_php ne relit php.ini qu'au reload d'Apache. Ignoré sur un hôte FPM.
 - name: reload apache2
   service:
