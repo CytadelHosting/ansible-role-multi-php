@@ -1,0 +1,15 @@
+; Session security. Chargé après les snippets des paquets (priorité 99).
+; FPM : un pool surcharge avec php_value[session.*].
+; Apache : un vhost surcharge avec php_flag / php_value.
+; session.upload_progress est PHP_INI_PERDIR. Le verrou est le php_admin_flag
+; du pool www, ou php-upload-progress.conf pour mod_php.
+; Ce fichier ne remplace pas un PHP patché (PHP2Shell).
+{% set php_version = php_versions[item.version].version %}
+
+session.upload_progress.enabled = {{ php_session_security.upload_progress_enabled }}
+session.use_strict_mode = {{ php_session_security.use_strict_mode }}
+session.cookie_httponly = {{ php_session_security.cookie_httponly }}
+session.cookie_secure = {{ php_session_security.cookie_secure }}
+{% if php_version is version('7.3', '>=') %}
+session.cookie_samesite = "{{ php_session_security.cookie_samesite }}"
+{% endif %}

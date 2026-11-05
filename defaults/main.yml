@@ -16,17 +16,16 @@ php_manage_fpm: true
 php_manage_cgi: true
 php_manage_apache2: false
 
-# Défauts écrits dans fpm/php.ini de chaque version. PHP_INI_ALL :
-# un pool les écrase avec php_value[session.cookie_*].
-# cookie_samesite n'existe qu'à partir de PHP 7.3.
-php_fpm_session_cookie_ini:
-  - key: session.cookie_httponly
-    value: "1"
-  - key: session.cookie_secure
-    value: "1"
-  - key: session.cookie_samesite
-    value: '"Lax"'
-    min_version: "7.3"
+# /etc/php/X.Y/{fpm,apache2}/conf.d/99-session-security.ini
+# Déposé sur le SAPI HTTP géré (php_manage_fpm / php_manage_apache2). Pas sur le CLI.
+# cookie_samesite est omis avant PHP 7.3. use_strict_mode existe depuis 5.5.2.
+# Un pool ou un vhost surcharge avec php_value / php_flag.
+php_session_security:
+  upload_progress_enabled: "Off"
+  use_strict_mode: "1"
+  cookie_httponly: "1"
+  cookie_secure: "1"
+  cookie_samesite: "Lax"
 
 php_remove_unused_versions: false
 php_remove_unused_modules: false

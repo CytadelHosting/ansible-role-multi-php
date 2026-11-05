@@ -49,22 +49,33 @@
   when: php_manage_fpm | bool
   loop: "{{ query('subelements', php, 'fpm_ini', {'skip_missing': True}) }}"
 
-# Après fpm_ini : ces trois clés restent celles du rôle.
-# Le pool (php_value) surcharge au runtime, pas ce php.ini.
-- name: Set default session cookie flags in fpm/php.ini
-  ini_file:
-    path: "{{ php_versions[item.0.version].conf_dir }}/fpm/php.ini"
-    section: Session
-    option: "{{ item.1.key }}"
-    value: "{{ item.1.value }}"
-  loop: "{{ php | product(php_fpm_session_cookie_ini) | list }}"
+# Même snippet sur chaque SAPI HTTP. Le CLI ne parse pas les requêtes multipart.
+- name: Install fpm session security snippet
+  template:
+    src: 99-session-security.ini.j2
+    dest: "{{ php_versions[item.version].conf_dir }}/fpm/conf.d/99-session-security.ini"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ php }}"
   loop_control:
-    label: "{{ item.0.version }}/{{ item.1.key }}"
-  when:
-    - php_manage_fpm | bool
-    - item.1.min_version is not defined or (php_versions[item.0.version].version is version(item.1.min_version, '>='))
-  register: php_fpm_session_cookie_result
-  notify: restart php-fpm session cookies
+    label: "{{ item.version }}/fpm"
+  when: php_manage_fpm | bool
+  register: php_fpm_session_security_result
+  notify: restart php-fpm session security
+
+- name: Install apache2 session security snippet
+  template:
+    src: 99-session-security.ini.j2
+    dest: "{{ php_versions[item.version].conf_dir }}/apache2/conf.d/99-session-security.ini"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ php }}"
+  loop_control:
+    label: "{{ item.version }}/apache2"
+  when: php_manage_apache2 | bool
+  notify: reload apache2
 
 # php-fpm.conf n'existe pas sans le paquet fpm. Sans ce garde, l'hôte mod_php casse ici.
 - name: Fix fpm/php-fpm.conf too large inclusions
