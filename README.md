@@ -146,6 +146,40 @@ Override that version's package list (`php56`, `php74`, ...): drop `phpX.Y-fpm` 
 
 `session.upload_progress` is forced Off. On mod_php the lock is `php_admin_flag` in `/etc/apache2/conf-available/php-upload-progress.conf` (`a2enconf`): a `.htaccess` `php_flag` can override `php.ini`. `.user.ini` is not read by mod_php.
 
+Session security snippet
+------------------------
+
+`99-session-security.ini` is written to every installed version on each HTTP SAPI the role manages:
+
+- `php_manage_fpm: true` → `/etc/php/X.Y/fpm/conf.d/99-session-security.ini`, restarts `phpX.Y-fpm` on change
+- `php_manage_apache2: true` → `/etc/php/X.Y/apache2/conf.d/99-session-security.ini`, reloads Apache on change
+
+The CLI is not touched: PHP2Shell is triggered by HTTP multipart requests, not by `php` on the command line.
+
+Values come from `php_session_security`. Override any key in `host_vars`; the others keep the role default:
+
+```yaml
+php_session_security:
+  cookie_samesite: "Strict"
+```
+
+| Key | Default | Written as |
+|---|---|---|
+| `upload_progress_enabled` | `Off` | `session.upload_progress.enabled` |
+| `use_strict_mode` | `1` | `session.use_strict_mode` |
+| `cookie_httponly` | `1` | `session.cookie_httponly` |
+| `cookie_secure` | `1` | `session.cookie_secure` |
+| `cookie_samesite` | `Lax` | `session.cookie_samesite` (PHP ≥ 7.3 only) |
+
+Overrides per site:
+
+- FPM: `php_value[session.cookie_samesite] = "Strict"` in `/etc/php/X.Y/fpm/pool.d/<site>.conf`. `php_admin_value[session.upload_progress.enabled] = Off` locks it against `ini_set` and `.user.ini`.
+- Apache: `php_value session.cookie_samesite "Strict"` in the `<VirtualHost>`.
+
+`session.upload_progress` is `PHP_INI_PERDIR`. The snippet sets the default, but the lock is the `php_admin_flag` on the `www` pool (FPM) or `php-upload-progress.conf` (mod_php).
+
+This snippet is a mitigation for PHP2Shell (CVE-2026-109618 / CVE-2026-109619), not a fix. Only a patched PHP release (8.2.35, 8.3.36, 8.4.27, 8.5.12) removes the vulnerability; PHP 8.1 and earlier (including 5.6 and 7.x) have no upstream fix.
+
 Role is tested and used in production deployments of Debian 10/11/12/13, and LTS versions of Ubuntu 20.04/22.04/24.04.
 
 Other distributions based on Debian/Ubuntu should work too.

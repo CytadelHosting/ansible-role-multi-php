@@ -19,7 +19,8 @@ php_manage_apache2: false
 # /etc/php/X.Y/{fpm,apache2}/conf.d/99-session-security.ini
 # Déposé sur le SAPI HTTP géré (php_manage_fpm / php_manage_apache2). Pas sur le CLI.
 # cookie_samesite est omis avant PHP 7.3. use_strict_mode existe depuis 5.5.2.
-# Un pool ou un vhost surcharge avec php_value / php_flag.
+# FPM : un pool surcharge avec php_value[...] dans pool.d/<site>.conf.
+# Apache : un VirtualHost surcharge avec php_value / php_flag.
 php_session_security:
   upload_progress_enabled: "Off"
   use_strict_mode: "1"
